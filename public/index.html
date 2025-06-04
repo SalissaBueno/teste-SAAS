@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Content Studio</title>
+    <style>
+        :root {
+            --bg-dark: #1A1A1A;
+            --text-light: #FFFFFF;
+            --accent-blue: #00A8FF;
+            --border-gray: #3D3D3D;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            height: 100vh;
+            display: grid;
+            grid-template-columns: 250px 1fr;
+        }
+        
+        .sidebar {
+            background-color: #121212;
+            border-right: 1px solid var(--border-gray);
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .workspace {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .function-item {
+            background-color: #252525;
+            border: 1px solid var(--border-gray);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            cursor: grab;
+            transition: all 0.2s;
+        }
+        
+        .function-item:hover {
+            background-color: #2E2E2E;
+            border-color: var(--accent-blue);
+        }
+        
+        .function-icon {
+            margin-right: 10px;
+            color: var(--accent-blue);
+        }
+        
+        .node {
+            position: absolute;
+            background-color: #252525;
+            border: 1px solid var(--accent-blue);
+            border-radius: 8px;
+            width: 200px;
+            min-height: 50px;
+            padding: 15px;
+            cursor: move;
+        }
+        
+        .node-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .node-close {
+            cursor: pointer;
+        }
+        
+        .modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #252525;
+            border: 1px solid var(--accent-blue);
+            border-radius: 8px;
+            width: 600px;
+            max-width: 90%;
+            z-index: 100;
+            display: none;
+        }
+        
+        .modal-header {
+            padding: 15px;
+            border-bottom: 1px solid var(--border-gray);
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .modal-body {
+            padding: 20px;
+        }
+        
+        .chat-container {
+            height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-gray);
+            border-radius: 4px;
+            padding: 10px;
+        }
+        
+        .message {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            border-radius: 4px;
+        }
+        
+        .user-message {
+            background-color: #2E2E2E;
+            align-self: flex-end;
+        }
+        
+        .ai-message {
+            background-color: #3D3D3D;
+            align-self: flex-start;
+        }
+        
+        .input-area {
+            display: flex;
+        }
+        
+        textarea {
+            flex-grow: 1;
+            background-color: #2E2E2E;
+            border: 1px solid var(--border-gray);
+            color: var(--text-light);
+            padding: 10px;
+            border-radius: 4px;
+            resize: none;
+        }
+        
+        button {
+            background-color: var(--accent-blue);
+            color: var(--text-light);
+            border: none;
+            padding: 10px 15px;
+            margin-left: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>Funções de IA</h2>
+        <div class="function-item" draggable="true" data-function="avatar-creation">
+            <span class="function-icon">👤</span> Criação de Avatar
+        </div>
+        <div class="function-item" draggable="true" data-function="avatar-refinement">
+            <span class="function-icon">✨</span> Refinamento de Avatar
+        </div>
+        <div class="function-item" draggable="true" data-function="product-offer">
+            <span class="function-icon">🛍️</span> Produto e oferta
+        </div>
+        <div class="function-item" draggable="true" data-function="unique-mechanism">
+            <span class="function-icon">⚙️</span> Mecanismo único
+        </div>
+        <div class="function-item" draggable="true" data-function="sales-copy">
+            <span class="function-icon">📝</span> Copy para página de vendas em texto
+        </div>
+        <div class="function-item" draggable="true" data-function="ad-scripts">
+            <span class="function-icon">🎬</span> Roteiros de Anúncios
+        </div>
+        <div class="function-item" draggable="true" data-function="ad-copy">
+            <span class="function-icon">📢</span> Copy de anúncios
+        </div>
+        <div class="function-item" draggable="true" data-function="content-script">
+            <span class="function-icon">📚</span> Roteiro de conteúdos
+        </div>
+        <div class="function-item" draggable="true" data-function="post-description">
+            <span class="function-icon">✍️</span> Descrição de post
+        </div>
+    </div>
+    
+    <div class="workspace" id="workspace">
+        <!-- Nodes serão adicionados aqui dinamicamente -->
+    </div>
+    
+    <div class="modal" id="functionModal">
+        <div class="modal-header">
+            <h3 id="modalTitle">Função</h3>
+            <span class="node-close" id="modalClose">×</span>
+        </div>
+        <div class="modal-body">
+            <div class="chat-container" id="chatContainer">
+                <!-- Mensagens do chat serão adicionadas aqui -->
+            </div>
+            <div class="input-area">
+                <textarea id="userInput" placeholder="Digite sua solicitação..."></textarea>
+                <button id="sendButton">Enviar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Implementação do JavaScript
+        document.addEventListener('DOMContentLoaded', function() {
+            const workspace = document.getElementById('workspace');
+            const functionItems = document.querySelectorAll('.function-item');
+            const functionModal = document.getElementById('functionModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalClose = document.getElementById('modalClose');
+            const chatContainer = document.getElementById('chatContainer');
+            const userInput = document.getElementById('userInput');
+            const sendButton = document.getElementById('sendButton');
+            
+            let currentFunction = null;
+            let nodes = [];
+            
+            // Tornar os itens da sidebar arrastáveis
+            functionItems.forEach(item => {
+                item.addEventListener('dragstart', function(e) {
+                    e.dataTransfer.setData('text/plain', this.dataset.function);
+                });
+            });
+            
+            // Configurar a área de trabalho para receber os itens arrastados
+            workspace.addEventListener('dragover', function(e) {
+                e.preventDefault();
+            });
+            
+            workspace.addEventListener('drop', function(e) {
+                e.preventDefault();
+                const functionType = e.dataTransfer.getData('text/plain');
+                createNode(functionType, e.clientX - workspace.getBoundingClientRect().left, e.clientY - workspace.getBoundingClientRect().top);
+            });
+            
+            // Criar um novo nó na área de trabalho
+            function createNode(functionType, x, y) {
+                const node = document.createElement('div');
+                node.className = 'node';
+                node.style.left = `${x}px`;
+                node.style.top = `${y}px`;
+                
+                const functionNames = {
+                    'avatar-creation': 'Criação de Avatar',
+                    'avatar-refinement': 'Refinamento de Avatar',
+                    'product-offer': 'Produto e oferta',
+                    'unique-mechanism': 'Mecanismo único',
+                    'sales-copy': 'Copy para página de vendas em texto',
+                    'ad-scripts': 'Roteiros de Anúncios',
+                    'ad-copy': 'Copy de anúncios',
+                    'content-script': 'Roteiro de conteúdos',
+                    'post-description': 'Descrição de post'
+                };
+                
+                node.innerHTML = `
+                    <div class="node-header">
+                        <span>${functionNames[functionType]}</span>
+                        <span class="node-close">×</span>
+                    </div>
+                    <p>Clique para abrir</p>
+                `;
+                
+                node.dataset.function = functionType;
+                
+                // Adicionar evento de clique para abrir o modal
+                node.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('node-close')) {
+                        this.remove();
+                        nodes = nodes.filter(n => n.element !== this);
+                    } else {
+                        openFunctionModal(this.dataset.function);
+                    }
+                });
+                
+                // Tornar o nó arrastável
+                let isDragging = false;
+                let offsetX, offsetY;
+                
+                node.addEventListener('mousedown', function(e) {
+                    if (e.target.classList.contains('node-close')) return;
+                    
+                    isDragging = true;
+                    offsetX = e.clientX - this.getBoundingClientRect().left;
+                    offsetY = e.clientY - this.getBoundingClientRect().top;
+                    this.style.zIndex = '10';
+                    e.preventDefault();
+                });
+                
+                document.addEventListener('mousemove', function(e) {
+                    if (!isDragging) return;
+                    
+                    const x = e.clientX - workspace.getBoundingClientRect().left - offsetX;
+                    const y = e.clientY - workspace.getBoundingClientRect().top - offsetY;
+                    
+                    node.style.left = `${Math.max(0, Math.min(x, workspace.clientWidth - node.offsetWidth))}px`;
+                    node.style.top = `${Math.max(0, Math.min(y, workspace.clientHeight - node.offsetHeight))}px`;
+                });
+                
+                document.addEventListener('mouseup', function() {
+                    isDragging = false;
+                    node.style.zIndex = 'auto';
+                });
+                
+                workspace.appendChild(node);
+                nodes.push({
+                    element: node,
+                    type: functionType,
+                    x,
+                    y
+                });
+            }
+            
+            // Abrir o modal da função
+            function openFunctionModal(functionType) {
+                const functionTitles = {
+                    'avatar-creation': 'Criação de Avatar',
+                    'avatar-refinement': 'Refinamento de Avatar',
+                    'product-offer': 'Produto e oferta',
+                    'unique-mechanism': 'Mecanismo único',
+                    'sales-copy': 'Copy para página de vendas em texto',
+                    'ad-scripts': 'Roteiros de Anúncios',
+                    'ad-copy': 'Copy de anúncios',
+                    'content-script': 'Roteiro de conteúdos',
+                    'post-description': 'Descrição de post'
+                };
+                
+                currentFunction = functionType;
+                modalTitle.textContent = functionTitles[functionType];
+                chatContainer.innerHTML = '';
+                userInput.value = '';
+                functionModal.style.display = 'block';
+                
+                // Adicionar prompt inicial baseado na função
+                addInitialPrompt(functionType);
+            }
+            
+            // Fechar o modal
+            modalClose.addEventListener('click', function() {
+                functionModal.style.display = 'none';
+            });
+            
+            // Enviar mensagem
+            sendButton.addEventListener('click', sendMessage);
+            userInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+            
+            function sendMessage() {
+                const message = userInput.value.trim();
+                if (!message) return;
+                
+                addMessage(message, 'user');
+                userInput.value = '';
+                
+                // Simular resposta da IA
+                setTimeout(() => {
+                    const aiResponse = generateAIResponse(currentFunction, message);
+                    addMessage(aiResponse, 'ai');
+                }, 1000);
+            }
+            
+            function addMessage(text, sender) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${sender}-message`;
+                messageDiv.textContent = text;
+                chatContainer.appendChild(messageDiv);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+            
+            function addInitialPrompt(functionType) {
+                const prompts = {
+                    'avatar-creation': 'Por favor, descreva as características do avatar que você deseja criar, incluindo demografia, interesses, desafios e objetivos.',
+                    'avatar-refinement': 'Descreva o avatar que você já tem e quais aspectos gostaria de refinar ou melhorar.',
+                    'product-offer': 'Descreva seu produto ou serviço e quais benefícios ele oferece aos clientes.',
+                    'unique-mechanism': 'Explique como seu produto ou serviço funciona e o que o torna único no mercado.',
+                    'sales-copy': 'Forneça detalhes sobre seu produto, público-alvo e os principais benefícios que deseja destacar.',
+                    'ad-scripts': 'Descreva o produto/anúncio, público-alvo, tom de voz e duração desejada para o roteiro.',
+                    'ad-copy': 'Informe sobre o produto, público, plataforma de anúncio e tom de voz desejado.',
+                    'content-script': 'Descreva o tópico, público-alvo, formato e tom de voz para o roteiro de conteúdo.',
+                    'post-description': 'Forneça detalhes sobre o conteúdo do post, público-alvo e tom de voz desejado.'
+                };
+                
+                addMessage(prompts[functionType], 'ai');
+            }
+            
+            function generateAIResponse(functionType, userInput) {
+                // Esta função seria substituída por chamadas reais à API de IA
+                // Aqui está uma simulação básica das respostas
+                
+                const responses = {
+                    'avatar-creation': `Com base na sua descrição, criei um avatar detalhado:
+                    
+Nome: [Nome Gerado]
+Idade: [Faixa Etária]
+Profissão: [Profissão]
+Desafios: [Desafios Identificados]
+Objetivos: [Objetivos Principais]
+Comportamentos: [Padrões de Comportamento]
+                    
+Precisa de algum ajuste específico?`,
+                    'avatar-refinement': `Analisei seu avatar atual e sugiro os seguintes refinamentos:
+                    
+1. [Sugestão 1]
+2. [Sugestão 2]
+3. [Sugestão 3]
+                    
+Isso ajudará a melhorar [aspecto específico]. Posso detalhar mais algum ponto?`,
+                    'product-offer': `Desenvolvi uma oferta poderosa para seu produto:
+                    
+[Nome do Produto]
+                    
+Benefício Principal: [Benefício Claro]
+Diferencial Único: [Diferencial]
+Oferta Irrecusável: [Oferta Especial]
+Garantia: [Tipo de Garantia]
+                    
+O que acha dessa estrutura?`,
+                    'unique-mechanism': `Seu mecanismo único foi detalhado:
+                    
+[Processo Passo a Passo]
+                    
+Por que é único:
+1. [Razão 1]
+2. [Razão 2]
+3. [Razão 3]
+                    
+Como isso resolve o problema do cliente: [Explicação]`,
+                    'sales-copy': `Aqui está o copy para sua página de vendas:
+                    
+[Headline Impactante]
+                    
+[Introdução que captura atenção]
+                    
+[Benefícios em bullet points]
+                    
+[Prova Social]
+                    
+[Chamada para ação clara]
+                    
+Quer ajustar algum elemento específico?`,
+                    'ad-scripts': `Roteiro de anúncio criado:
+                    
+[Plataforma]: [Tipo de Vídeo]
+Duração: [X] segundos
+                    
+[Opening Impactante]
+[Problema]
+[Solução]
+[CTA]
+                    
+Posso adaptar para outras plataformas ou durações?`,
+                    'ad-copy': `Copy de anúncio pronto:
+                    
+[Texto Principal]
+[Hashtags Relevantes]
+[Link Otimizado]
+[CTA]
+                    
+Teste A/B sugerido: [Variação 1] vs [Variação 2]`,
+                    'content-script': `Roteiro de conteúdo desenvolvido:
+                    
+Título: [Título Atraente]
+                    
+Estrutura:
+1. [Ponto 1]
+2. [Ponto 2]
+3. [Ponto 3]
+                    
+Formato: [Tipo de Conteúdo]
+Tom: [Tom Especificado]
+                    
+Precisa de mais detalhes em alguma seção?`,
+                    'post-description': `Descrição para seu post:
+                    
+[Texto Principal]
+[Emojis Relevantes]
+[@Menções]
+#Hashtags
+[Link]
+                    
+Engajamento estimado: [X]% maior que a média. Quer otimizar para alguma plataforma específica?`
+                };
+                
+                return responses[functionType];
+            }
+        });
+    </script>
+</body>
+</html>
